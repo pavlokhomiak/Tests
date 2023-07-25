@@ -1,0 +1,28 @@
+namespace UnitTests.Units;
+
+public class Cache
+{
+    public record Item(string Url, string Content, DateTime LastCollected);
+
+    private readonly TimeSpan _cacheTime;
+    private readonly Dictionary<string, Item> _cache = new();
+    
+    public Cache(TimeSpan cacheTime)
+    {
+        _cacheTime = cacheTime;
+    }
+
+    public bool Contains(string url)
+    {
+        // q: explain me TryGetValue
+        // a: https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.trygetvalue?view=net-5.0
+        if (_cache.TryGetValue(url, out var item))
+        {
+            return DateTime.UtcNow.Subtract(item.LastCollected) < _cacheTime;
+        }
+
+        return false;
+    }
+
+    public void Add(Item item) => _cache.Add(item.Url, item);
+}
