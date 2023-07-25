@@ -4,46 +4,36 @@ using Xunit;
 
 namespace IntegrationTests.Tests;
 
-public class AnimalDatabaseTests
+public class AnimalDatabaseTests : IClassFixture<AnimalSetupFixture>
 {
-    private const string ConnectionTemplate = "Server=localhost;User Id=postgres;Password=mysecretpassword;Port=54322;";
-    private const string DatabaseName = "test_db";
-    private const string ConnectionString = $"{ConnectionTemplate}Database={DatabaseName};";
+    private readonly AnimalSetupFixture _animalSetupFixture;
+
+    public AnimalDatabaseTests(AnimalSetupFixture animalSetupFixture)
+    {
+        _animalSetupFixture = animalSetupFixture;
+    }
 
     [Fact]
     public async void AnimalStore_SavesAnimalToDatabase()
     {
-        await DatabaseSetup.CreateDatabase(ConnectionTemplate, DatabaseName);
-
-        PostgresqlConnectionFactory connectionFactory = new PostgresqlConnectionFactory(ConnectionString);
-        NpgsqlConnection connection = await connectionFactory.Create();
-        IDatabase database = new Postgresql(connection);
-        IAnimalStore store = new AnimalStore(database);
-
-        await store.SaveAnimal(new(0, "Foo", "Bar"));
+        IAnimalStore store = _animalSetupFixture.Store;
+        Animal animal = new(0, "Pavlo", "Bar");
+        await store.SaveAnimal(animal);
 
         var animals = await store.GetAnimals();
-        var animal = Assert.Single(animals);
-        Assert.Equal(1, animal.Id);
-        Assert.Equal("Foo", animal.Name);
-        Assert.Equal("Bar", animal.Type);
+        var storedAnimal= animals.Where(a => a.Name == "Pavlo").First();
 
-        await connectionFactory.DisposeAsync();
-        await DatabaseSetup.DeleteDatabase(ConnectionTemplate, DatabaseName);
-        NpgsqlConnection.ClearAllPools();
+        Assert.Equal(4, storedAnimal.Id);
+        Assert.Equal("Pavlo", storedAnimal.Name);
+        Assert.Equal("Bar", storedAnimal.Type);
+        
+        // NpgsqlConnection.ClearAllPools();
     }
     
     [Fact]
     public async void AnimalStore_GetsSavedAnimalByIdFromDatabase()
     {
-        await DatabaseSetup.CreateDatabase(ConnectionTemplate, DatabaseName);
-
-        PostgresqlConnectionFactory connectionFactory = new PostgresqlConnectionFactory(ConnectionString);
-        NpgsqlConnection connection = await connectionFactory.Create();
-        IDatabase database = new Postgresql(connection);
-        IAnimalStore store = new AnimalStore(database);
-
-        await store.SaveAnimal(new(0, "Foo", "Bar"));
+        IAnimalStore store = _animalSetupFixture.Store;
 
         var animal = await store.GetAnimal(1);
 
@@ -51,9 +41,5 @@ public class AnimalDatabaseTests
         Assert.Equal(1, animal.Id);
         Assert.Equal("Foo", animal.Name);
         Assert.Equal("Bar", animal.Type);
-
-        await connectionFactory.DisposeAsync();
-        await DatabaseSetup.DeleteDatabase(ConnectionTemplate, DatabaseName);
-        NpgsqlConnection.ClearAllPools();
     }
 }
